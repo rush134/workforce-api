@@ -9,7 +9,7 @@ app.listen(port, () => {
     console.log(`listening on port ${port}`);
 })
 
-const User = require('./models/user');
+// const User = require('./models/user');
 
 var MongoClient = require('mongodb').MongoClient;
 const dburl = "mongodb+srv://admin:admin@workforce-cluster.foz3q.mongodb.net/workforce-db?retryWrites=true&w=majority";
@@ -28,6 +28,18 @@ app.use(function(req, res, next) {
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
     next();
+});
+
+
+// Working
+app.post('/:test', (req, res) => {
+    console.log('The API is working!' + req.params.test);
+    res.send('The API is working!' + req.params.test);
+});
+
+// Working
+app.get('/', (req, res) => {
+    res.send('The API is working!');
 });
 
 // Working
@@ -77,17 +89,6 @@ app.get('/api/log', (req, res) => {
             // console.log(result);
         });
     });
-});
-
-// Working
-app.post('/test/:test', (req, res) => {
-    console.log('The API is working!' + req.params.test);
-    res.send('The API is working!' + req.params.test);
-});
-
-// Working
-app.get('/test', (req, res) => {
-    res.send('The API is working!');
 });
 
 //Working

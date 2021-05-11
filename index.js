@@ -1,5 +1,9 @@
 // API
 
+var QRCode = require('qrcode')
+// var API_URL = 'http://localhost:5000'; // The weebsite where this will be hosted
+var API_URL = 'https://work--force-api.herokuapp.com'; // The weebsite where this will be hosted
+
 var express = require('express');
 var bodyParser = require('body-parser')
 var app = express();
@@ -44,7 +48,7 @@ app.get('/', (req, res) => {
     res.send('The API is working!');
 });
 
-// Working
+// Working web
 app.get('/api/log', (req, res) => {
     
     client.connect(err => {
@@ -65,6 +69,7 @@ app.get('/api/log', (req, res) => {
                     '<td><b>license</b></td>' +
                     '<td><b>last_department_checkedin</b></td>'+
                     '<td><b>last_equipment_checkedin</b></td>' +
+                    '<td><b>time_updated</b></td>' +
                 '</tr>';
 
             // process todo list
@@ -78,6 +83,7 @@ app.get('/api/log', (req, res) => {
                     `<td>${result.license}</td>`+
                     `<td>${result.last_department_checkedin}</td>`+
                     `<td>${result.last_equipment_checkedin}</td>`+
+                    `<td>${result.time_updated}</td>`+
                     `</tr>`
             });
 
@@ -92,6 +98,10 @@ app.get('/api/log', (req, res) => {
         });
     });
 });
+
+// QRCode.toString(`${API_URL}`,{type:'terminal'}, function (err, url) {
+//     console.log(url)
+// })
 
 //Working
 app.post('/api/register/:name/:age/:department/:supervisor/:duties/:license', (req, res) => {   
@@ -108,98 +118,104 @@ app.post('/api/register/:name/:age/:department/:supervisor/:duties/:license', (r
             duties:duties,
             license:license,
             last_department_checkedin:null,
-            last_equipment_checkedin:null
+            last_equipment_checkedin:null,
+            time_updated:null
         }, 
         function(err, result) {
             if (err) throw err;
-            res.json(result);
-            client.close();
+
+            QRCode.toString(`${API_URL}/api/update/${name}/${age}/${department}/`,{type:'svg'}, function (err, url) {
+                // console.log(url)
+                return res.json({
+                    success: true,
+                    qr_code: url,
+                    message: 'Created new user',
+                });
+            })
+            // client.close();
+            // res.json(result);
         });
     })
 });
 
-app.post('/api/devices', (req, res) => {
-    const { name, user, sensorData } = req.body;
+app.get('/api/update/:name/:age/:department/:last_department_checkedin/:last_equipment_checkedin', (req, res) => {            
+    const {name,age,department,last_department_checkedin, last_equipment_checkedin} = req.params;
     
-    const newDevice = new Device({
-        name,
-        user,
-        sensorData
-    });   
+    // console.log(last_department_checkedin+last_equipment_checkedin);
+    // http://localhost:5000/api/update/testuser7/45/electrical/power_department/forklift
 
-    newDevice.save(err => {
-        return err
-        ? res.send(err)
-        : res.send('successfully added device and data');
+    client.connect(err => {
+
+        var dbo = client.db(dbname)
+        var collection = dbo.collection(collname);
+        var date = new Date()
+
+        var update_time = `${date.getDate()}:${date.getMonth()+1}:${date.getFullYear()}  ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`
+
+        var check_criteria = { name: name,age: age,department:department};
+        var update_data = { $set: {last_department_checkedin: last_department_checkedin, last_equipment_checkedin: last_equipment_checkedin, time_updated:update_time} };
+        
+        collection.updateOne(check_criteria, update_data, function(error, result) {
+            if (err) throw err;
+            // write HTML output
+            
+
+            // Send output
+            return res.json({
+                success: true,
+                message: `Updated record: <== Name: ${name}; Age: ${age}; Department: ${department}; last_department_checkedin: ${last_department_checkedin}; last_equipment_checkedin: ${last_equipment_checkedin} ==>`,
+            });
+        });
     });
 });
 
-
-app.post('/api/authenticate', (req, res) => {
+// Working
+app.get('/api/db', (req, res) => {
     
-    const {user, password } = req.body;
-    User.findOne({name: user},(err, found) => {
-            if(err){
-                res.send(err);
-            }
-            else if(!found){
-                res.send('User not found.');
-            }
-            else if(found.password !== password){
-                res.send('Password is wrong.');
-                
-            }
-            else{
-                return res.json({
-                    success: true,
-                    message: 'Authenticated successfully',
-                    isAdmin: found.isAdmin
-                });
-            }
+    client.connect(err => {
+        const collection = client.db(dbname).collection(collname);
+        collection.find({}).toArray(function(error, result) {
+            if (err) throw err;
+            // write HTML output
+            var output = 
+                '<table border="1"><tr>' + 
+                    '<td><b>name</b></td>'+
+                    '<td><b>age</b></td>' + 
+                    '<td><b>department</b></td>'+
+                    '<td><b>supervisor</b></td>' +
+                    '<td><b>duties</b></td>'+
+                    '<td><b>license</b></td>' +
+                    '<td><b>last_department_checkedin</b></td>'+
+                    '<td><b>last_equipment_checkedin</b></td>' +
+                    '<td><b>time_updated</b></td>' +
+                '</tr>';
+
+            // process todo list
+            result.forEach(function(result){
+                output += `<tr>`+
+                    `<td>${result.name}</td>`+
+                    `<td>${result.age}</td>`+
+                    `<td>${result.department}</td>`+
+                    `<td>${result.supervisor}</td>`+
+                    `<td>${result.duties}</td>`+
+                    `<td>${result.license}</td>`+
+                    `<td>${result.last_department_checkedin}</td>`+
+                    `<td>${result.last_equipment_checkedin}</td>`+
+                    `<td>${result.time_updated}</td>`+
+                    `</tr>`
+            });
+
+            // write HTML output (ending)
+            output += '</table>'
+
+            // send output back
+            res.send(output);
+
+            // res.send(result);
+            // console.log(result);
         });
-});
-
-// app.post('/api/register', (req, res) => {   
-//     const {user, password } = req.body;    
-//     User.findOne({name: user},(err, found) => {
-//             if(err){
-//                 res.send(err);
-//             }
-//             else if(found){
-//                 res.send('User already found.');
-//             }
-//             else{
-//                 const newUser = new User({
-//                     name: user,
-//                     password: password                    
-//                 });
-//                 newUser.save(err => {
-//                     return res.json({
-//                         success: true,
-//                         message: 'Created new user'
-//                         });
-//                     });
-//             }
-//         });
-// });
-
-
-   
-app.get('/api/devices/:deviceId/device-history', (req, res) => {            
-            const { deviceId } = req.params;
-            Device.findOne({"_id": deviceId }, (err, devices) => {
-            const { sensorData } = devices;
-            return err
-            ? res.send(err)
-            : res.send(sensorData);          
-        });
-});
-
-app.get('/api/users/:user/devices', (req, res) => {
-    const { user } = req.params;
-    Device.find({ "user": user }, (err, devices) => {
-        return err
-        ? res.send(err)
-        : res.send(devices);
     });
 });
+
+// var date = new Date()
+// console.log(`${date.getDate()}:${date.getMonth()+1}:${date.getFullYear()}  ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`)

@@ -108,10 +108,16 @@ app.post('/api/authenticate', (req, res) => {
                 res.send(err);
             }
             else if(!found){
-                res.send('User not found');
+                return res.json({
+                    success: false,
+                    message: 'User not found'
+                });
             }
             else if(found.password !== password){
-                res.send('Wrong Password');
+                return res.json({
+                    success: false,
+                    message: 'Wrong Password'
+                });
             }
             else{
                 return res.json({

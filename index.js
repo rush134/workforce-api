@@ -53,7 +53,7 @@ app.use(bodyParser.urlencoded({
 }));
 app.post('/api/register', (req, res) => {
 
-    const {name, password, age, department, role} = req.body;
+    const {name, password, age, department, role} = req.query;
 
     // console.log(name+password+age);
     client.connect(err => {
@@ -92,10 +92,13 @@ app.post('/api/register', (req, res) => {
 
 // Working
 app.post('/api/authenticate', (req, res) => {
+    // REF: https://stackoverflow.com/a/6913287
+    // var {username, password} = req.body;
+    var {username, password} = req.query;
+    // username = req.query.username
+    // password = req.query.password
 
-    const {username, password} = req.body;
-
-    // console.log(username+password);
+    console.log(username+password);
 
     client.connect(err => {
         const collection = client.db(dbname).collection(collname);
@@ -155,7 +158,7 @@ app.get('/api/update/:name/:age/:department/:last_department_checkedin/:last_equ
 
 // Working
 app.post('/api/db', (req, res) => {
-    const {role, department} = req.body;
+    const {role, department} = req.query;
     
     // console.log(role+department)
 

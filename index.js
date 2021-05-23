@@ -2,7 +2,7 @@
 
 var QRCode = require('qrcode')
 // var API_URL = 'http://localhost:5000'; // The weebsite where this will be hosted
-var API_URL = 'https://work--force-api.herokuapp.com'; // The weebsite where this will be hosted
+// var API_URL = 'https://work--force-api.herokuapp.com'; // The weebsite where this will be hosted
 
 var express = require('express');
 var bodyParser = require('body-parser')
@@ -22,6 +22,8 @@ const dburl = "mongodb+srv://admin:admin@workforce-cluster.foz3q.mongodb.net/wor
 const dbname = 'workforce-db';
 // const collname = 'workforce-col-test';
 const collname = 'workforce-col';
+// const logcollname = 'workforce-log-test';
+const logcollname = 'workforce-log';
 const client = new MongoClient(dburl, { useNewUrlParser: true, useUnifiedTopology: true });
 
 // create application/json parser
@@ -120,6 +122,7 @@ app.post('/api/authenticate', (req, res) => {
                 });
             }
             else{
+                console.log(found.role+found.department)
                 return res.json({
                     success: true,
                     message: 'Authenticated successfully',
@@ -131,35 +134,64 @@ app.post('/api/authenticate', (req, res) => {
     })
 });
 
-app.get('/api/update/:name/:age/:department/:last_department_checkedin/:last_equipment_checkedin', (req, res) => {            
-    const {name,age,department,last_department_checkedin, last_equipment_checkedin} = req.params;
-    
-    // console.log(last_department_checkedin+last_equipment_checkedin);
-    // http://localhost:5000/api/update/testuser7/45/electrical/power_department/forklift
+// Working
+app.post('/api/update', (req, res) => {
+
+    // ENDPOINTS
+    // CheckIn
+    // CheckOut
+    // ForkLift1
+    // ForkLift2
+    // ForkLift3
+
+    var {user, department, command, device} = req.query;
+
+    var date = new Date()
+    var update_time = `${date.getDate()}:${date.getMonth()+1}:${date.getFullYear()}  ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`
+
+    console.log(user+department+command+device);
 
     client.connect(err => {
+        const collection = client.db(dbname).collection(logcollname);
 
-        var dbo = client.db(dbname)
-        var collection = dbo.collection(collname);
-        var date = new Date()
+        if(device == 'CheckIn' || device == 'CheckOut'){
 
-        var update_time = `${date.getDate()}:${date.getMonth()+1}:${date.getFullYear()}  ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`
+            // console.log(device + 'eeebvbfhvbdfvsbfb');
 
-        var check_criteria = { name: name,age: age,department:department};
-        var update_data = { $set: {last_department_checkedin: last_department_checkedin, last_equipment_checkedin: last_equipment_checkedin, time_updated:update_time} };
-        
-        collection.updateOne(check_criteria, update_data, function(error, result) {
-            if (err) throw err;
-            // write HTML output
-            
-
-            // Send output
-            return res.json({
-                success: true,
-                message: `Updated record: <== Name: ${name}; Age: ${age}; Department: ${department}; last_department_checkedin: ${last_department_checkedin}; last_equipment_checkedin: ${last_equipment_checkedin} ==>`,
+            collection.insertOne({
+                Time:update_time,
+                user:user,
+                department: department,
+                function: command,
+                equipment:null
+            }, 
+            function(err, result) {
+                if (err) throw err;
+    
+                return res.json({
+                    success: true,
+                    message: 'Updated successfully',
+                });
             });
-        });
-    });
+        }
+        else{
+            collection.insertOne({
+                Time:update_time,
+                user:user,
+                department: department,
+                function: command,
+                equipment:device
+            }, 
+            function(err, result) {
+                if (err) throw err;
+    
+                return res.json({
+                    success: true,
+                    message: 'Updated successfully',
+                });
+            });
+        }
+    })
 });
 
 // Working
@@ -171,72 +203,209 @@ app.post('/api/db', (req, res) => {
     if(role == 'ceo'){
         client.connect(err => {
             const collection = client.db(dbname).collection(collname);
+            const logcollection = client.db(dbname).collection(logcollname);
+
+            // console.log('db enter');
+            var output = ''
+            var haha = true;
             collection.find({}).toArray(function(error, result) {
                 if (err) throw err;
                 // write HTML output
-                var output = 
-                    '<table border="1"><tr>' + 
-                        '<td><b>name</b></td>'+
-                        '<td><b>age</b></td>' + 
-                        '<td><b>department</b></td>'+
-                        '<td><b>password</b></td>' +
-                        '<td><b>role</b></td>'+
-                        '<td><b>last_equipment_checkedin</b></td>' +
-                        '<td><b>time_updated</b></td>' +
-                    '</tr>';
+                output = 
+                `<div style="width: 100%; overflow: hidden;">
+                <div style="width: 600px; float: left;">`+
+                    '<table class="styled-table"><tbody><thead><tr>' + 
+                        '<th><b>Name</b></th>'+
+                        '<th><b>Age</b></th>' + 
+                        '<th><b>Department</b></th>'+
+                        '<th><b>Password</b></th>' +
+                        '<th><b>Role</b></th>'+
+                        // '<td><b>last_equipment_checkedin</b></td>' +
+                        // '<td><b>time_updated</b></td>' +
+                    '</tr></thead><tbody>';
     
                 // process todo list
                 result.forEach(function(result){
-                    output += `<tr>`+
-                        `<td>${result.name}</td>`+
-                        `<td>${result.age}</td>`+
-                        `<td>${result.department}</td>`+
-                        `<td>${result.password}</td>`+
-                        `<td>${result.role}</td>`+
-                        `<td>${result.last_equipment_checkedin}</td>`+
-                        `<td>${result.time_updated}</td>`+
-                        `</tr>`
-                });
-
-                output += '</table>'
-
-                res.send(output)
-            });
-        });
-    }
-    else if(role == 'supervisor'){
-        client.connect(err => {
-            const collection = client.db(dbname).collection(collname);
-            collection.find({}).toArray(function(error, result) {
-                if (err) throw err;
-                // write HTML output
-                var output = 
-                    '<table border="1"><tr>' + 
-                        '<td><b>name</b></td>'+
-                        '<td><b>age</b></td>' + 
-                        '<td><b>department</b></td>'+
-                        '<td><b>password</b></td>' +
-                        '<td><b>role</b></td>'+
-                        '<td><b>last_equipment_checkedin</b></td>' +
-                        '<td><b>time_updated</b></td>' +
-                    '</tr>';
-    
-                // process todo list
-                result.forEach(function(result){
-                    if(result.department == department){
+                    if(haha){
                         output += `<tr>`+
                         `<td>${result.name}</td>`+
                         `<td>${result.age}</td>`+
                         `<td>${result.department}</td>`+
                         `<td>${result.password}</td>`+
                         `<td>${result.role}</td>`+
-                        `<td>${result.last_equipment_checkedin}</td>`+
-                        `<td>${result.time_updated}</td>`+
+                        // `<td>${result.last_equipment_checkedin}</td>`+
+                        // `<td>${result.time_updated}</td>`+
                         `</tr>`
+
+                        haha=false;
+                    }
+                    else{
+                        output += `<tr class="active-row">`+
+                        `<td>${result.name}</td>`+
+                        `<td>${result.age}</td>`+
+                        `<td>${result.department}</td>`+
+                        `<td>${result.password}</td>`+
+                        `<td>${result.role}</td>`+
+                        // `<td>${result.last_equipment_checkedin}</td>`+
+                        // `<td>${result.time_updated}</td>`+
+                        `</tr>`
+
+                        haha=true;
+                    }
+                    
+                });
+
+                output += '</tbody></table></div>'
+                output += '<div style="margin-left: 620px;">'
+            });
+
+            var haha = true;
+            logcollection.find({}).toArray(function(error, result) {
+                if (err) throw err;
+                // console.log(result)
+                // write HTML output
+                output += 
+                    '<table class="styled-table"><tr>' + 
+                        '<th><b>Time</b></th>'+
+                        '<th><b>User</b></th>' + 
+                        '<th><b>Department</b></th>'+
+                        '<th><b>Description</b></th>' +
+                        '<th><b>last_equipment_checkedin</b></th>'
+                    '</tr><tbody>';
+    
+                // process todo list
+                result.forEach(function(result){
+
+
+                    if(haha){
+                        output += `<tr>`+
+                        `<td>${result.Time}</td>`+
+                        `<td>${result.user}</td>`+
+                        `<td>${result.department}</td>`+
+                        `<td>${result.function}</td>`+
+                        `<td>${result.equipment}</td>`+
+                        `</tr>`
+                        haha=false;
+                    }
+                    else{
+                        output += `<tr class="active-row">`+
+                        `<td>${result.Time}</td>`+
+                        `<td>${result.user}</td>`+
+                        `<td>${result.department}</td>`+
+                        `<td>${result.function}</td>`+
+                        `<td>${result.equipment}</td>`+
+                        `</tr>`
+                        haha=true;
                     }
                 });
 
-                output += '</table>'
+                output += '</tbody></table></div></div>'
+
+                res.send(output)
+            });
+
+        });
+    }
+    else if(role == 'supervisor'){
+        client.connect(err => {
+            const collection = client.db(dbname).collection(collname);
+            const logcollection = client.db(dbname).collection(logcollname);
+
+            // console.log('db enter');
+            var output = ''
+            var haha = true;
+            collection.find({}).toArray(function(error, result) {
+                if (err) throw err;
+                output = 
+                `<div style="width: 100%; overflow: hidden;">
+                    <div style="width: 600px; float: left;">`+
+                    '<table class="styled-table"><tbody><thead><tr>' + 
+                        '<th><b>Name</b></th>'+
+                        '<th><b>Age</b></th>' + 
+                        '<th><b>Department</b></th>'+
+                        '<th><b>Password</b></th>' +
+                        '<th><b>Role</b></th>'+
+                        // '<td><b>last_equipment_checkedin</b></td>' +
+                        // '<td><b>time_updated</b></td>' +
+                    '</tr></thead><tbody>';
+    
+                // process todo list
+                result.forEach(function(result){
+                    if(result.department == department){
+                        if(haha){
+                            output += `<tr>`+
+                            `<td>${result.name}</td>`+
+                            `<td>${result.age}</td>`+
+                            `<td>${result.department}</td>`+
+                            `<td>${result.password}</td>`+
+                            `<td>${result.role}</td>`+
+                            // `<td>${result.last_equipment_checkedin}</td>`+
+                            // `<td>${result.time_updated}</td>`+
+                            `</tr>`
+    
+                            haha=false;
+                        }
+                        else{
+                            output += `<tr class="active-row">`+
+                            `<td>${result.name}</td>`+
+                            `<td>${result.age}</td>`+
+                            `<td>${result.department}</td>`+
+                            `<td>${result.password}</td>`+
+                            `<td>${result.role}</td>`+
+                            // `<td>${result.last_equipment_checkedin}</td>`+
+                            // `<td>${result.time_updated}</td>`+
+                            `</tr>`
+    
+                            haha=true;
+                        }
+                    }
+                });
+
+                output += '</tbody></table></div>'
+                output += '<div style="margin-left: 620px;">'
+            });
+
+            var haha = true;
+
+            logcollection.find({}).toArray(function(error, result) {
+                if (err) throw err;
+                // console.log(result)
+                // write HTML output
+                output += 
+                    '<table class="styled-table"><tr>' + 
+                        '<th><b>Time</b></th>'+
+                        '<th><b>User</b></th>' + 
+                        '<th><b>Department</b></th>'+
+                        '<th><b>Description</b></th>' +
+                        '<th><b>last_equipment_checkedin</b></th>'
+                    '</tr><tbody>';
+    
+                result.forEach(function(result){
+                    if(result.department == department){
+                        if(haha){
+                            output += `<tr>`+
+                            `<td>${result.Time}</td>`+
+                            `<td>${result.user}</td>`+
+                            `<td>${result.department}</td>`+
+                            `<td>${result.function}</td>`+
+                            `<td>${result.equipment}</td>`+
+                            `</tr>`
+                            haha=false;
+                        }
+                        else{
+                            output += `<tr class="active-row">`+
+                            `<td>${result.Time}</td>`+
+                            `<td>${result.user}</td>`+
+                            `<td>${result.department}</td>`+
+                            `<td>${result.function}</td>`+
+                            `<td>${result.equipment}</td>`+
+                            `</tr>`
+                            haha=true;
+                        }
+                    }
+                });
+
+                output += '</tbody></table></div></div>'
 
                 res.send(output)
             });
@@ -396,5 +565,35 @@ app.post('/api/register/:name/:password/:age/:department/:supervisor/:duties/:li
     })
 });
 
+app.get('/api/update/:name/:age/:department/:last_department_checkedin/:last_equipment_checkedin', (req, res) => {            
+    const {name,age,department,last_department_checkedin, last_equipment_checkedin} = req.params;
+    
+    // console.log(last_department_checkedin+last_equipment_checkedin);
+    // http://localhost:5000/api/update/testuser7/45/electrical/power_department/forklift
+
+    client.connect(err => {
+
+        var dbo = client.db(dbname)
+        var collection = dbo.collection(collname);
+        var date = new Date()
+
+        var update_time = `${date.getDate()}:${date.getMonth()+1}:${date.getFullYear()}  ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`
+
+        var check_criteria = { name: name,age: age,department:department};
+        var update_data = { $set: {last_department_checkedin: last_department_checkedin, last_equipment_checkedin: last_equipment_checkedin, time_updated:update_time} };
+        
+        collection.updateOne(check_criteria, update_data, function(error, result) {
+            if (err) throw err;
+            // write HTML output
+            
+
+            // Send output
+            return res.json({
+                success: true,
+                message: `Updated record: <== Name: ${name}; Age: ${age}; Department: ${department}; last_department_checkedin: ${last_department_checkedin}; last_equipment_checkedin: ${last_equipment_checkedin} ==>`,
+            });
+        });
+    });
+});
 
 */
